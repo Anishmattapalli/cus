@@ -2,9 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { readActionResult } from "@/lib/action-result";
 import { btn, btnDanger } from "./ui";
-
-type Result = { error?: string; id?: string; customerId?: string; ok?: boolean; warn?: string | null };
 
 export function ActionForm({
   action,
@@ -17,7 +16,7 @@ export function ActionForm({
   confirmInitial,
   variant = "primary",
 }: {
-  action: (formData: FormData) => Promise<Result | void>;
+  action: (formData: FormData) => Promise<unknown>;
   successHref?: string;
   submitLabel: string;
   children: ReactNode;
@@ -48,7 +47,7 @@ export function ActionForm({
         setError(null);
         setWarn(null);
         try {
-          const res = (await action(fd)) || {};
+          const res = readActionResult(await action(fd));
           if (res.error) {
             setError(res.error);
             return;

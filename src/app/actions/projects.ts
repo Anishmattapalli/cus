@@ -13,10 +13,10 @@ function parseOptionalCost(raw: string): { value: string | null; error?: string 
   if (!cleaned) return { value: null };
   try {
     const n = money(cleaned);
-    if (n.lt(0)) return { error: "Estimated project cost cannot be negative." };
+    if (n.lt(0)) return { value: null, error: "Estimated project cost cannot be negative." };
     return { value: n.toFixed(2) };
   } catch {
-    return { error: "Enter a valid estimated project cost." };
+    return { value: null, error: "Enter a valid estimated project cost." };
   }
 }
 
@@ -146,7 +146,7 @@ export async function confirmStageChange(projectId: string, newMilestoneId: stri
   if ("error" in auth) return auth;
   const user = auth.user;
   const preview = await previewStageChange(projectId, newMilestoneId);
-  if ("error" in preview && preview.error) return preview;
+  if (!("customersAffected" in preview)) return preview;
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: { currentMilestone: true, milestones: true },

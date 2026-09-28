@@ -7,7 +7,7 @@ const saleInclude = {
   project: { include: { currentMilestone: true, milestones: true } },
   milestones: { orderBy: { sequenceNumber: "asc" as const } },
   receipts: { orderBy: [{ receiptDate: "asc" as const }, { createdAt: "asc" as const }] },
-} as const;
+};
 
 export type SaleWithFinance = Awaited<ReturnType<typeof loadSaleFinance>>;
 
@@ -50,12 +50,12 @@ export function financeForSale(sale: {
       id: m.id,
       sequenceNumber: m.sequenceNumber,
       stageName: m.stageName,
-      paymentPercentage: m.paymentPercentage,
-      amountDue: m.amountDue,
+      paymentPercentage: m.paymentPercentage?.toString() ?? null,
+      amountDue: m.amountDue.toString(),
       becameDueAt: m.becameDueAt,
     })),
     sale.receipts.map((r) => ({
-      amount: r.amount,
+      amount: r.amount.toString(),
       receiptDate: r.receiptDate,
       createdAt: r.createdAt,
       id: r.id,

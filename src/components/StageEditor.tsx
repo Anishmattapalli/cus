@@ -7,6 +7,7 @@ import {
   moveProjectMilestone,
   updateProjectMilestone,
 } from "@/app/actions/projects";
+import { readActionResult } from "@/lib/action-result";
 import { btn, btnGhost, field } from "./ui";
 
 type Stage = {
@@ -72,7 +73,7 @@ function StageRow({
       if (extra) {
         for (const [k, v] of Object.entries(extra)) fd.set(k, v);
       }
-      const res = (await action(fd)) || {};
+      const res = readActionResult(await action(fd));
       if (res.error) setError(res.error);
       else {
         if (res.warn) setWarn(res.warn);
@@ -90,7 +91,7 @@ function StageRow({
         setError(null);
         setWarn(null);
         start(async () => {
-          const res = (await updateProjectMilestone(fd)) || {};
+          const res = readActionResult(await updateProjectMilestone(fd));
           if (res.error) setError(res.error);
           else {
             if (res.warn) setWarn(res.warn);

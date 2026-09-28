@@ -9,6 +9,7 @@ import {
   updateSaleMilestone,
 } from "@/app/actions/records";
 import { ActionForm } from "./ActionForm";
+import { readActionResult } from "@/lib/action-result";
 import { btn, btnGhost, field } from "./ui";
 
 type Stage = {
@@ -73,7 +74,7 @@ function SaleStageRow({
       const fd = new FormData();
       fd.set("milestoneId", stage.id);
       if (extra) for (const [k, v] of Object.entries(extra)) fd.set(k, v);
-      const res = (await action(fd)) || {};
+      const res = readActionResult(await action(fd));
       if (res.error) setError(res.error);
       else {
         if (res.warn) setWarn(res.warn);
@@ -91,7 +92,7 @@ function SaleStageRow({
         setError(null);
         setWarn(null);
         start(async () => {
-          const res = (await updateSaleMilestone(fd)) || {};
+          const res = readActionResult(await updateSaleMilestone(fd));
           if (res.error) setError(res.error);
           else {
             if (res.warn) setWarn(res.warn);
