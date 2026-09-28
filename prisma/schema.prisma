@@ -1,0 +1,413 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  mobile       String?
+  designation  String?
+  photoPath    String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  roleId       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdById  String?
+  updatedById  String?
+
+  role                   Role?                   @relation(fields: [roleId], references: [id])
+  createdBy              User?                   @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers           User[]                  @relation("UserCreatedBy")
+  updatedBy              User?                   @relation("UserUpdatedBy", fields: [updatedById], references: [id])
+  updatedUsers           User[]                  @relation("UserUpdatedBy")
+  permissionOverrides    UserPermissionOverride[]
+  projectAccess          UserProjectAccess[]
+  projectsCreated        Project[]               @relation("ProjectCreatedBy")
+  projectsUpdated        Project[]               @relation("ProjectUpdatedBy")
+  customersCreated       Customer[]              @relation("CustomerCreatedBy")
+  customersUpdated       Customer[]              @relation("CustomerUpdatedBy")
+  salesCreated           Sale[]                  @relation("SaleCreatedBy")
+  salesUpdated           Sale[]                  @relation("SaleUpdatedBy")
+  receiptsCreated        Receipt[]               @relation("ReceiptCreatedBy")
+  receiptsUpdated        Receipt[]               @relation("ReceiptUpdatedBy")
+  receiptsCancelled      Receipt[]               @relation("ReceiptCancelledBy")
+  conversationsCreated   Conversation[]          @relation("ConversationCreatedBy")
+  conversationsUpdated   Conversation[]          @relation("ConversationUpdatedBy")
+  documentsCreated       Document[]              @relation("DocumentCreatedBy")
+  documentsUpdated       Document[]              @relation("DocumentUpdatedBy")
+  stageChanges           ProjectStageHistory[]
+  auditLogs              AuditLog[]              @relation("AuditActor")
+  auditAffected          AuditLog[]              @relation("AuditAffectedUser")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  isProtected Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  updatedById String?
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  key         String  @id
+  module      String
+  action      String
+  label       String
+  description String?
+
+  rolePermissions RolePermission[]
+  userOverrides   UserPermissionOverride[]
+}
+
+model RolePermission {
+  roleId        String
+  permissionKey String
+  allowed       Boolean @default(true)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([roleId, permissionKey])
+}
+
+model UserPermissionOverride {
+  userId        String
+  permissionKey String
+  effect        String
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([userId, permissionKey])
+}
+
+model UserProjectAccess {
+  id        String @id @default(cuid())
+  userId    String
+  projectId String
+  access    String @default("view")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+model Project {
+  id                 String    @id @default(cuid())
+  code               String    @unique
+  name               String
+  propertyType       String
+  description        String?
+  location           String?
+  currentMilestoneId String?
+  status             String    @default("active")
+  notes              String?
+  estimatedCost      Decimal?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdById        String?
+  updatedById        String?
+
+  currentMilestone ProjectPaymentMilestone? @relation("ProjectCurrentStage", fields: [currentMilestoneId], references: [id], onDelete: SetNull)
+  createdBy        User?                    @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  updatedBy        User?                    @relation("ProjectUpdatedBy", fields: [updatedById], references: [id])
+  milestones       ProjectPaymentMilestone[] @relation("ProjectMilestones")
+  stageHistory     ProjectStageHistory[]
+  sales            Sale[]
+  receipts         Receipt[]
+  documents        Document[]
+  conversations    Conversation[]
+  userAccess       UserProjectAccess[]
+
+  @@index([name])
+}
+
+model ProjectPaymentMilestone {
+  id                String   @id @default(cuid())
+  projectId         String
+  sequenceNumber    Int
+  stageName         String
+  description       String?
+  calculationType   String   @default("percentage")
+  paymentPercentage Decimal?
+  fixedAmount       Decimal?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdById       String?
+  updatedById       String?
+
+  project     Project                @relation("ProjectMilestones", fields: [projectId], references: [id], onDelete: Cascade)
+  currentFor  Project[]              @relation("ProjectCurrentStage")
+  saleRows    SalePaymentMilestone[]
+  historyPrev ProjectStageHistory[]  @relation("HistoryPrevious")
+  historyNew  ProjectStageHistory[]  @relation("HistoryNew")
+
+  @@unique([projectId, sequenceNumber])
+  @@index([projectId])
+}
+
+model ProjectStageHistory {
+  id                    String   @id @default(cuid())
+  projectId             String
+  previousMilestoneId   String?
+  newMilestoneId        String
+  previousStageName     String?
+  newStageName          String
+  changedAt             DateTime @default(now())
+  changedById           String
+  customersAffected     Int      @default(0)
+  newAmountBecomingDue  Decimal  @default(0)
+  notes                 String?
+
+  project           Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  previousMilestone ProjectPaymentMilestone?  @relation("HistoryPrevious", fields: [previousMilestoneId], references: [id])
+  newMilestone      ProjectPaymentMilestone   @relation("HistoryNew", fields: [newMilestoneId], references: [id])
+  changedBy         User                      @relation(fields: [changedById], references: [id])
+
+  @@index([projectId, changedAt])
+}
+
+model Customer {
+  id                  String    @id @default(cuid())
+  customerCode        String    @unique
+  fullName            String
+  fatherOrSpouseName  String?
+  customerType        String    @default("individual")
+  pan                 String?
+  idReference         String?
+  dateOfBirth         DateTime?
+  gender              String?
+  primaryMobile       String
+  alternateMobile     String?
+  whatsapp            String?
+  email               String?
+  residentialAddress  String?
+  permanentAddress    String?
+  leadSource          String?
+  referredBy          String?
+  salesPerson         String?
+  status              String    @default("active")
+  internalNotes       String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  createdById         String?
+  updatedById         String?
+
+  createdBy     User?           @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User?           @relation("CustomerUpdatedBy", fields: [updatedById], references: [id])
+  sales         Sale[]
+  receipts      Receipt[]
+  conversations Conversation[]
+  documents     Document[]
+
+  @@index([fullName])
+  @@index([primaryMobile])
+  @@index([email])
+}
+
+model Sale {
+  id                     String   @id @default(cuid())
+  saleCode               String   @unique
+  customerId             String
+  projectId              String
+  propertyType           String
+  unitNumber             String?
+  plotNumber             String?
+  flatNumber             String?
+  villaNumber            String?
+  block                  String?
+  tower                  String?
+  floor                  String?
+  surveyNumber           String?
+  area                   Decimal?
+  areaUnit               String?
+  bookingDate            DateTime?
+  agreementDate          DateTime?
+  baseSaleValue          Decimal
+  additionalCharges      Decimal  @default(0)
+  discount               Decimal  @default(0)
+  finalAgreedSaleValue   Decimal
+  registrationValue      Decimal?
+  otherCharges           Decimal  @default(0)
+  saleStatus             String   @default("active")
+  scheduleIsCustomized   Boolean  @default(false)
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  createdById            String?
+  updatedById            String?
+
+  customer     Customer               @relation(fields: [customerId], references: [id])
+  project      Project                @relation(fields: [projectId], references: [id])
+  createdBy    User?                  @relation("SaleCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User?                  @relation("SaleUpdatedBy", fields: [updatedById], references: [id])
+  milestones   SalePaymentMilestone[]
+  receipts     Receipt[]
+  documents    Document[]
+  conversations Conversation[]
+
+  @@index([customerId])
+  @@index([projectId])
+  @@index([unitNumber])
+  @@index([flatNumber])
+  @@index([plotNumber])
+  @@index([villaNumber])
+}
+
+model SalePaymentMilestone {
+  id                  String    @id @default(cuid())
+  saleId              String
+  projectMilestoneId  String?
+  sequenceNumber      Int
+  stageName           String
+  description         String?
+  calculationType     String
+  paymentPercentage   Decimal?
+  amountDue           Decimal
+  becameDueAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sale             Sale                      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  projectMilestone ProjectPaymentMilestone?  @relation(fields: [projectMilestoneId], references: [id])
+
+  @@unique([saleId, sequenceNumber])
+  @@index([saleId])
+}
+
+model Receipt {
+  id                     String    @id @default(cuid())
+  receiptNumber          String    @unique
+  customerId             String
+  saleId                 String
+  projectId              String
+  receiptDate            DateTime
+  amount                 Decimal
+  paymentMode            String
+  bankName               String?
+  utrOrTransactionNumber String?
+  chequeNumber           String?
+  chequeDate             DateTime?
+  reference              String?
+  remarks                String?
+  proofDocumentId        String?
+  status                 String    @default("active")
+  cancelledAt            DateTime?
+  cancelledById          String?
+  cancellationReason     String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  createdById            String?
+  updatedById            String?
+
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  sale        Sale      @relation(fields: [saleId], references: [id])
+  project     Project   @relation(fields: [projectId], references: [id])
+  createdBy   User?     @relation("ReceiptCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?     @relation("ReceiptUpdatedBy", fields: [updatedById], references: [id])
+  cancelledBy User?     @relation("ReceiptCancelledBy", fields: [cancelledById], references: [id])
+
+  @@index([saleId, status, receiptDate])
+  @@index([receiptNumber])
+  @@index([utrOrTransactionNumber])
+}
+
+model Conversation {
+  id                   String    @id @default(cuid())
+  customerId           String
+  saleId               String?
+  projectId            String?
+  occurredAt           DateTime
+  interactionType      String
+  subject              String?
+  notes                String
+  followUpRequired     Boolean   @default(false)
+  followUpAt           DateTime?
+  followUpNotes        String?
+  followUpCompletedAt  DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  createdById          String?
+  updatedById          String?
+
+  customer  Customer @relation(fields: [customerId], references: [id])
+  sale      Sale?    @relation(fields: [saleId], references: [id])
+  project   Project? @relation(fields: [projectId], references: [id])
+  createdBy User?    @relation("ConversationCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?    @relation("ConversationUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([customerId, occurredAt])
+  @@index([followUpAt])
+}
+
+model Document {
+  id               String   @id @default(cuid())
+  customerId       String?
+  saleId           String?
+  projectId        String?
+  name             String
+  documentType     String
+  documentDate     DateTime?
+  uploadedAt       DateTime @default(now())
+  storagePath      String
+  originalFilename String
+  mimeType         String
+  fileSizeBytes    Int
+  description      String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  createdById      String?
+  updatedById      String?
+
+  customer  Customer? @relation(fields: [customerId], references: [id])
+  sale      Sale?     @relation(fields: [saleId], references: [id])
+  project   Project?  @relation(fields: [projectId], references: [id])
+  createdBy User?     @relation("DocumentCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?     @relation("DocumentUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([customerId])
+  @@index([saleId])
+  @@index([projectId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  actorId        String?
+  affectedUserId String?
+  entityType     String
+  entityId       String
+  action         String
+  beforeJson     String?
+  afterJson      String?
+  createdAt      DateTime @default(now())
+
+  actor        User? @relation("AuditActor", fields: [actorId], references: [id])
+  affectedUser User? @relation("AuditAffectedUser", fields: [affectedUserId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([affectedUserId])
+}
+
+model SequenceCounter {
+  name  String @id
+  value Int    @default(0)
+}

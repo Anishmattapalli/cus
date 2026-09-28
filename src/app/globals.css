@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f1f5f9;
+  --foreground: #1e293b;
+  --card: #ffffff;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --accent: #c2410c;
+  --due: #d97706;
+  --ok: #15803d;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+a.text-rust {
+  @apply font-medium transition-colors duration-150 hover:text-ink hover:underline;
+}
+
+main table {
+  @apply w-full text-sm;
+}
+
+main thead {
+  @apply text-[11px] uppercase tracking-wide text-muted;
+}
+
+main tbody tr {
+  @apply border-t border-line transition-colors duration-150;
+}
+
+main tbody tr:hover {
+  @apply bg-sky-50/70;
+}
+
+main th,
+main td {
+  @apply px-1.5;
+}
